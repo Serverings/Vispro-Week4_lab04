@@ -221,6 +221,21 @@ class _MenuScreenState extends State<MenuScreen> {
   String _query = '';
   String _category = kCategories.first;
   final Map<String, int> _qty = {};
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _resetFilters() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _category = kCategories.first;
+    });
+  }
 
   List<MenuItem> get _visible => widget.items.where((item) {
         final matchesQuery =
@@ -257,68 +272,90 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   Widget build(BuildContext context) {
     final visible = _visible;
-    final promos = widget.items.where((item) => item.promo).toList();
+    final promos = widget.items.where((item) => item.promo).take(2).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Menu')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 600;
+            body: SafeArea(
+        top: false,
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 600;
 
-          return CustomScrollView(
-            slivers: [
-              const SliverToBoxAdapter(child: StoreHeader()),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                  child: SearchBar(
-                    key: const Key('search-field'),
-                    hintText: 'Cari menu…',
-                    leading: const Icon(Icons.search),
-                    onChanged: (value) => setState(() => _query = value),
+            return CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: StoreHeader()),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                    child: SearchBar(
+                      key: const Key('search-field'),
+                      controller: _searchController,
+                      hintText: 'Cari menu…',
+                      leading: const Icon(Icons.search),
+                      onChanged: (value) => setState(() => _query = value),
+                    ),
                   ),
                 ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: Gap.sm)),
-              SliverToBoxAdapter(
-                child: CategoryBar(
-                  selected: _category,
-                  onSelected: (category) => setState(() => _category = category),
+                const SliverToBoxAdapter(child: SizedBox(height: Gap.sm)),
+                SliverToBoxAdapter(
+                  child: CategoryBar(
+                    selected: _category,
+                    onSelected: (category) =>
+                        setState(() => _category = category),
+                  ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: PromoStrip(first: promos[0], second: promos[1]),
-              ),
-              if (isWide)
-                SliverPadding(
-                  padding: const EdgeInsets.all(Gap.md),
-                  sliver: SliverGrid.builder(
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 220,
-                      mainAxisSpacing: Gap.md,
-                      crossAxisSpacing: Gap.md,
-                      childAspectRatio: 0.75,
+                if (promos.isNotEmpty)
+                  SliverToBoxAdapter(child: PromoStrip(promos: promos)),
+                if (visible.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      key: const Key('empty-state'),
+                      message: widget.items.isEmpty
+                          ? 'Belum ada menu hari ini.'
+                          : 'Tidak ada menu yang cocok dengan pencarianmu.',
+                      actionLabel: widget.items.isEmpty
+                          ? 'Muat ulang'
+                          : 'Reset pencarian',
+                      onAction: widget.items.isEmpty
+                          ? () => setState(() {})
+                          : _resetFilters,
                     ),
+                  )
+                else if (isWide)
+                  SliverPadding(
+                    padding: const EdgeInsets.all(Gap.md),
+                    sliver: SliverGrid.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 220,
+                        mainAxisSpacing: Gap.md,
+                        crossAxisSpacing: Gap.md,
+                        childAspectRatio: 0.75,
+                      ),
+                      itemCount: visible.length,
+                      itemBuilder: (context, i) => MenuCard(
+                        item: visible[i],
+                        quantity: _qty[visible[i].id] ?? 0,
+                        onAdd: () => _add(visible[i]),
+                      ),
+                    ),
+                  )
+                else
+                  SliverList.builder(
                     itemCount: visible.length,
-                    itemBuilder: (context, i) => MenuCard(
+                    itemBuilder: (context, i) => MenuTile(
                       item: visible[i],
                       quantity: _qty[visible[i].id] ?? 0,
                       onAdd: () => _add(visible[i]),
                     ),
                   ),
-                )
-              else
-                SliverList.builder(
-                  itemCount: visible.length,
-                  itemBuilder: (context, i) => MenuTile(
-                    item: visible[i],
-                    quantity: _qty[visible[i].id] ?? 0,
-                    onAdd: () => _add(visible[i]),
-                  ),
-                ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
       bottomNavigationBar: CartBar(count: _count, total: _total, onOrder: _order),
     );
@@ -415,21 +452,24 @@ class CategoryBar extends StatelessWidget {
 }
 
 class PromoStrip extends StatelessWidget {
-  const PromoStrip({super.key, required this.first, required this.second});
+  const PromoStrip({super.key, required this.promos});
 
-  final MenuItem first;
-  final MenuItem second;
+  final List<MenuItem> promos;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(Gap.md),
-      // PromoStrip
       child: Row(
         children: [
-          Expanded(child: PromoCard(item: first)),
-          const SizedBox(width: Gap.md),
-          Expanded(child: PromoCard(item: second)),
+          for (var i = 0; i < 2; i++) ...[
+            if (i > 0) const SizedBox(width: Gap.md),
+            Expanded(
+              child: i < promos.length
+                  ? PromoCard(item: promos[i])
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ],
       ),
     );
@@ -591,22 +631,30 @@ class MenuCard extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: Gap.sm),
             Text(
               item.name,
               style: text.titleSmall,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: Gap.sm),
-            Text(item.name, style: text.titleSmall),
             const SizedBox(height: Gap.xs),
-            Text(rupiah(item.price), style: text.bodyMedium),
+            Text(
+              rupiah(item.price),
+              style: text.bodyMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: Gap.sm),
             SizedBox(
               width: double.infinity,
               child: FilledButton.tonal(
                 onPressed: onAdd,
-                child: Text(quantity > 0 ? 'Tambah ($quantity)' : 'Tambah'),
+                child: Text(
+                  quantity > 0 ? 'Tambah ($quantity)' : 'Tambah',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],
@@ -633,29 +681,80 @@ class CartBar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
-    return Container(
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+    return ColoredBox(
       color: cs.surfaceContainerHigh,
-      child: Row(
-        children: [
-          Icon(Icons.shopping_bag_outlined, color: cs.onSurfaceVariant),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Text(
-              'Pesanan: $count item · Total ${rupiah(total)}',
-              style: text.titleSmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 72,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            child: Row(
+              children: [
+                Icon(Icons.shopping_bag_outlined, color: cs.onSurfaceVariant),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(
+                    'Pesanan: $count item · Total ${rupiah(total)}',
+                    style: text.titleSmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: Gap.md),
+                FilledButton(
+                  key: const Key('order-button'),
+                  onPressed: count == 0 ? null : onOrder,
+                  child: const Text('Pesan'),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: Gap.md),
-          FilledButton(
-            key: const Key('order-button'),
-            onPressed: count == 0 ? null : onOrder,
-            child: const Text('Pesan'),
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class EmptyState extends StatelessWidget {
+  const EmptyState({
+    super.key,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.no_meals, size: 48, color: cs.onSurfaceVariant),
+            const SizedBox(height: Gap.md),
+            Text(
+              message,
+              style: text.titleMedium,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: Gap.md),
+            FilledButton.tonal(
+              onPressed: onAction,
+              child: Text(actionLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
       ),
     );
   }
