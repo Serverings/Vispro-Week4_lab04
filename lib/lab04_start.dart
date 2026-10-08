@@ -337,20 +337,40 @@ class StoreHeader extends StatelessWidget {
             child: Icon(Icons.storefront, color: cs.onPrimaryContainer),
           ),
           const SizedBox(width: Gap.md),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(kStoreName, style: text.titleMedium),
-              Text(
-                kStoreHours,
-                style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kStoreName,
+                  style: text.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  kStoreHours,
+                  style: text.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: Gap.xs),
+                Row(
+                  children: [
+                    Icon(Icons.star_rounded, size: 20, color: cs.tertiary),
+                    const SizedBox(width: Gap.xs),
+                    Expanded(
+                      child: Text(
+                        '4.8 · 1,2 rb ulasan',
+                        style: text.labelMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: Gap.md),
-          Icon(Icons.star_rounded, size: 20, color: cs.tertiary),
-          const SizedBox(width: Gap.xs),
-          Text('4.8 · 1,2 rb ulasan', style: text.labelMedium),
         ],
       ),
     );
@@ -365,7 +385,8 @@ class CategoryBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: Gap.md),
       child: Row(
         children: [
@@ -393,11 +414,12 @@ class PromoStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(Gap.md),
+      // PromoStrip
       child: Row(
         children: [
-          PromoCard(item: first),
+          Expanded(child: PromoCard(item: first)),
           const SizedBox(width: Gap.md),
-          PromoCard(item: second),
+          Expanded(child: PromoCard(item: second)),
         ],
       ),
     );
@@ -414,8 +436,8 @@ class PromoCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
+    // PromoCard: hapus width: 200, tambahkan maxLines
     return SizedBox(
-      width: 200,
       height: 150,
       child: Card(
         margin: EdgeInsets.zero,
@@ -427,6 +449,8 @@ class PromoCard extends StatelessWidget {
             children: [
               Text(
                 'PROMO HARI INI',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: text.labelSmall?.copyWith(
                   color: cs.onTertiaryContainer,
                   letterSpacing: 1.2,
@@ -435,11 +459,15 @@ class PromoCard extends StatelessWidget {
               const SizedBox(height: Gap.xs),
               Text(
                 item.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: text.titleMedium?.copyWith(color: cs.onTertiaryContainer),
               ),
               const Spacer(),
               Text(
                 rupiah(item.price),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: text.titleSmall?.copyWith(
                   color: cs.onTertiaryContainer,
                   fontWeight: FontWeight.bold,
@@ -482,15 +510,22 @@ class MenuTile extends StatelessWidget {
               child: Icon(iconFor(item.category), color: cs.onSecondaryContainer),
             ),
             const SizedBox(width: Gap.md),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.name, style: text.titleMedium),
-                if (item.promo)
-                  Text('Promo', style: text.labelSmall?.copyWith(color: cs.primary)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: text.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (item.promo)
+                    Text('Promo', style: text.labelSmall?.copyWith(color: cs.primary)),
+                ],
+              ),
             ),
-            const Spacer(),
+            const SizedBox(width: Gap.sm),
             Text(rupiah(item.price), style: text.labelLarge),
             IconButton(
               tooltip: 'Tambah',
@@ -588,18 +623,19 @@ class CartBar extends StatelessWidget {
         children: [
           Icon(Icons.shopping_bag_outlined, color: cs.onSurfaceVariant),
           const SizedBox(width: Gap.sm),
-          Text(
-            'Pesanan: $count item · Total ${rupiah(total)}',
-            style: text.titleSmall,
+          Expanded(
+            child: Text(
+              'Pesanan: $count item · Total ${rupiah(total)}',
+              style: text.titleSmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           const SizedBox(width: Gap.md),
-          SizedBox(
-            width: 160,
-            child: FilledButton(
-              key: const Key('order-button'),
-              onPressed: count == 0 ? null : onOrder,
-              child: const Text('Pesan'),
-            ),
+          FilledButton(
+            key: const Key('order-button'),
+            onPressed: count == 0 ? null : onOrder,
+            child: const Text('Pesan'),
           ),
         ],
       ),
